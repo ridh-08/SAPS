@@ -1,0 +1,94 @@
+{
+  "imports": {
+    "India": {
+      "Bangladesh": ["Ready-Made Garments (RMG)", "Jute & Jute Goods", "Fish", "Leather Products"],
+      "Pakistan": ["Dates", "Cement", "Gypsum", "Chemicals"],
+      "Sri Lanka": ["Spices (Pepper, Cloves)", "Animal Feed", "Areca Nuts", "Insulated Wires"],
+      "Nepal": ["Palm Oil", "Soybean Oil", "Cardamom & Spices", "Jute Goods"],
+      "Bhutan": ["Hydroelectric Power", "Ferroalloys", "Dolomite", "Cement"],
+      "Maldives": ["Scrap Metal (Iron, Steel)", "Fish Products", "Animal Feed"],
+      "Afghanistan": ["Edible Fruits & Nuts (Figs, Raisins)", "Asafoetida (Hing)", "Medicinal Herbs", "Onions"]
+    },
+    "Bangladesh": {
+      "India": ["Raw Cotton", "Petroleum Oils", "Automobiles", "Cereals"],
+      "Pakistan": ["Cotton Yarn", "Woven Fabrics", "Machinery"],
+      "Sri Lanka": ["Woven Fabrics", "Spices", "Coconut Products"],
+      "Nepal": ["Vegetable Products (Lentils)", "Jute Goods", "Spices"],
+      "Bhutan": ["Oranges", "Apples", "Dolomite", "Limestone"]
+    },
+    "Pakistan": {
+      "India": ["Organic Chemicals", "Raw Cotton", "Pharmaceuticals", "Plastics"],
+      "Bangladesh": ["Jute", "Tea", "Leather"],
+      "Sri Lanka": ["Tea", "Rubber", "Coconut"],
+      "Afghanistan": ["Coal Briquettes", "Raw Cotton", "Grapes", "Onions"]
+    },
+    "Sri Lanka": {
+      "India": ["Refined Petroleum", "Automobiles & Motorcycles", "Pharmaceuticals", "Steel Products"],
+      "Bangladesh": ["Pharmaceuticals", "Apparel", "Potatoes"],
+      "Pakistan": ["Woven Cotton Fabrics", "Cement", "Potatoes", "Pharmaceuticals"],
+      "Maldives": ["Fish products", "Scrap Metal"]
+    },
+    "Nepal": {
+      "India": ["Petroleum Products", "Rice", "Automobiles", "Pharmaceuticals"],
+      "Bangladesh": ["Pharmaceuticals", "Potatoes", "Jute Goods"]
+    },
+    "Bhutan": {
+      "India": ["Refined Petroleum", "Automobiles", "Machinery", "Rice"],
+      "Bangladesh": ["Ready-Made Garments", "Pharmaceuticals", "Jute products"]
+    },
+    "Maldives": {
+      "India": ["Refined Petroleum", "Engineering & Industrial Goods", "Pharmaceuticals", "Food items (Rice, Poultry)"],
+      "Sri Lanka": ["Food Products", "Building Materials", "Pharmaceuticals"]
+    },
+    "Afghanistan": {
+      "India": ["Pharmaceuticals", "Sugar & Confectionery", "Textiles", "Cereals"],
+      "Pakistan": ["Wheat Flour", "Pharmaceuticals", "Sugar", "Cement"]
+    }
+  },
+  "exports": {
+    "India": {
+      "Bangladesh": ["Raw Cotton", "Petroleum Oils", "Automobiles", "Cereals"],
+      "Pakistan": ["Organic Chemicals", "Raw Cotton", "Pharmaceuticals", "Plastics"],
+      "Sri Lanka": ["Refined Petroleum", "Automobiles & Motorcycles", "Pharmaceuticals", "Steel Products"],
+      "Nepal": ["Petroleum Products", "Rice", "Automobiles", "Pharmaceuticals"],
+      "Bhutan": ["Refined Petroleum", "Automobiles", "Machinery", "Rice"],
+      "Maldives": ["Refined Petroleum", "Engineering & Industrial Goods", "Pharmaceuticals", "Food items (Rice, Poultry)"],
+      "Afghanistan": ["Pharmaceuticals", "Sugar & Confectionery", "Textiles", "Cereals"]
+    },
+    "Bangladesh": {
+      "India": ["Ready-Made Garments (RMG)", "Jute & Jute Goods", "Fish", "Leather Products"],
+      "Pakistan": ["Jute", "Tea", "Leather"],
+      "Sri Lanka": ["Pharmaceuticals", "Apparel", "Potatoes"],
+      "Nepal": ["Pharmaceuticals", "Potatoes", "Jute Goods"],
+      "Bhutan": ["Ready-Made Garments", "Pharmaceuticals", "Jute products"]
+    },
+    "Pakistan": {
+      "India": ["Dates", "Cement", "Gypsum", "Chemicals"],
+      "Bangladesh": ["Cotton Yarn", "Woven Fabrics", "Machinery"],
+      "Sri Lanka": ["Woven Cotton Fabrics", "Cement", "Potatoes", "Pharmaceuticals"],
+      "Afghanistan": ["Wheat Flour", "Pharmaceuticals", "Sugar", "Cement"]
+    },
+    "Sri Lanka": {
+      "India": ["Spices (Pepper, Cloves)", "Animal Feed", "Areca Nuts", "Insulated Wires"],
+      "Bangladesh": ["Woven Fabrics", "Spices", "Coconut Products"],
+      "Pakistan": ["Tea", "Rubber", "Coconut"],
+      "Maldives": ["Food Products", "Building Materials", "Pharmaceuticals"]
+    },
+    "Nepal": {
+      "India": ["Palm Oil", "Soybean Oil", "Cardamom & Spices", "Jute Goods"],
+      "Bangladesh": ["Vegetable Products (Lentils)", "Jute Goods", "Spices"]
+    },
+    "Bhutan": {
+      "India": ["Hydroelectric Power", "Ferroalloys", "Dolomite", "Cement"],
+      "Bangladesh": ["Oranges", "Apples", "Dolomite", "Limestone"]
+    },
+    "Maldives": {
+      "India": ["Scrap Metal (Iron, Steel)", "Fish Products", "Animal Feed"],
+      "Sri Lanka": ["Fish products", "Scrap Metal"]
+    },
+    "Afghanistan": {
+      "India": ["Edible Fruits & Nuts (Figs, Raisins)", "Asafoetida (Hing)", "Medicinal Herbs", "Onions"],
+      "Pakistan": ["Coal Briquettes", "Raw Cotton", "Grapes", "Onions"]
+    }
+  }
+}
