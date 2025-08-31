@@ -263,6 +263,8 @@ export const DetailedSpilloverDashboard: React.FC<DetailedSpilloverDashboardProp
 
     const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
+    const timeframeOrder = ['immediate', 'short-term', 'medium-term', 'long-term'];
+
     // Group spillovers by timeframe
     const timeframeData = d3.rollup(
       spilloverEffects,
@@ -270,14 +272,14 @@ export const DetailedSpilloverDashboard: React.FC<DetailedSpilloverDashboardProp
       (d) => d.timeframe
     );
 
-    const data = Array.from(timeframeData, ([timeframe, count]) => ({
-      timeframe,
-      count,
+    const data = timeframeOrder.map(tf => ({
+      timeframe: tf,
+      count: timeframeData.get(tf) || 0
     }));
 
     const xScale = d3
       .scaleBand()
-      .domain(data.map((d) => d.timeframe))
+      .domain(timeframeOrder)
       .range([0, width])
       .padding(0.1);
 
