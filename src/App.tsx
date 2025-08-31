@@ -1,5 +1,3 @@
-  // Load trade products data on mount
-  
 import React, { useState, useEffect } from 'react';
 import { CountrySelector } from './components/CountrySelector';
 import { PolicyDashboard } from './components/PolicyDashboard';
@@ -17,10 +15,9 @@ import {
   loadAllExcelIndicators, 
   getIndicatorValue, 
   getLatestIndicatorValue,
-  getCountryStats,
   AllIndicators 
 } from './data/ExcelDataLoader';
-import { loadTradeProductsData, getBilateralTradeProducts } from './data/TradeProductsLoader';
+import { loadTradeProductsData } from './data/TradeProductsLoader';
 import { exportToCsv } from './utils/export.ts';
 import { INITIAL_REGIONAL_MATRIX, RegionalEconomySimulator } from './data/RegionalMatrix';
 import { createDefaultPolicyDecisions } from './data/PolicyDecisions';
@@ -78,15 +75,16 @@ function App() {
 
   const getCountryPolicyVariations = (countryName: string): { [key: string]: number } => {
     // Add realistic policy variations for each country
+    // These match the new policy IDs
     const variations: { [key: string]: { [key: string]: number } } = {
-      'India': { education: 1.0, infrastructure: 2.0, trade: 10, cooperation: 5 },
-      'Pakistan': { health: 0.5, infrastructure: -1.0, tariff: 5, cooperation: -10 },
-      'Bangladesh': { education: -0.5, infrastructure: 3.0, trade: 15, environment: -0.5 },
-      'Sri Lanka': { health: 1.0, education: 0.5, tariff: -3, cooperation: 10 },
-      'Nepal': { infrastructure: -2.0, environment: 1.0, cooperation: 15 },
-      'Bhutan': { environment: 3.0, health: 2.0, cooperation: 20 },
-      'Maldives': { environment: 2.0, trade: 20, infrastructure: -1.0 },
-      'Afghanistan': { health: -1.0, education: -2.0, cooperation: -20, tariff: 10 }
+      'India': { connectivity: 2.0, trust: 5 },
+      'Pakistan': { tariffs: 5, trust: -10 },
+      'Bangladesh': { connectivity: 3.0, ntbs: -10 },
+      'Sri Lanka': { tariffs: -3, trust: 10 },
+      'Nepal': { connectivity: -2.0, trust: 15 },
+      'Bhutan': { trust: 20 },
+      'Maldives': { ntbs: -15, connectivity: -1.0 },
+      'Afghanistan': { trust: -20, tariffs: 10 }
     };
     
     return variations[countryName] || {};
@@ -171,7 +169,7 @@ function App() {
       tourism_spending: getPolicyValue('tourism'),
       environment_spending: getPolicyValue('environment'),
       trade_liberalization: getPolicyValue('trade'),
-      tariff_rate: getPolicyValue('tariff'),
+      tariff_rate: getPolicyValue('tariffs'), // Use new policy ID
       // Add new GDP contribution fields
       agriculture_gdp_percent: agricultureGdpPercent,
       manufacturing_gdp_percent: manufacturingGdpPercent,
@@ -219,18 +217,16 @@ function App() {
           
           // Simple AI logic - adjust policies based on performance
           if (countryStats.gdp_growth < 2) {
-            if (decision.id === 'infrastructure') adjustment = 0.5;
-            if (decision.id === 'trade') adjustment = 5;
+            if (decision.id === 'connectivity') adjustment = 0.5;
+            if (decision.id === 'tariffs') adjustment = -1; // Lower tariffs to boost trade
           }
           
           if (countryStats.unemployment > 8) {
-            if (decision.id === 'education') adjustment = 0.3;
-            if (decision.id === 'infrastructure') adjustment = 0.8;
+            if (decision.id === 'connectivity') adjustment = 0.8;
           }
           
           if (countryStats.poverty_rate > 25) {
-            if (decision.id === 'health') adjustment = 0.4;
-            if (decision.id === 'education') adjustment = 0.6;
+             // No direct mapping to new policies, but could be added
           }
           
           // Add some randomness
@@ -254,17 +250,30 @@ function App() {
   const handleNextYear = () => {
     if (!gameState.gameActive) return;
 
-    // Simulate AI decisions for all countries
+    // 1. Simulate AI decisions for all countries
     const updatedDecisions = simulateAIDecisions();
     
-    // Calculate spillover effects
+    // 2. Calculate average cooperation from the new decisions
+    const avgCooperation = Object.values(updatedDecisions).reduce((sum, decisions) => {
+      const coopDecision = decisions.find(d => d.id === 'trust');
+      return sum + (coopDecision?.value || 50);
+    }, 0) / Object.keys(updatedDecisions).length;
+
+    // 3. Generate regional events for this year
+    const regionalEvents = RegionalEconomySimulator.generateRegionalEvents(
+      gameState.year + 1,
+      avgCooperation,
+      gameState.regionalMatrix.regionalEvents
+    );
+
+    // 4. Calculate spillover effects
     const spilloversByCountry = PolicySimulator.simulateRegionalEffects(
       gameState.countries,
       updatedDecisions,
       gameState.regionalMatrix.tradeMatrix
     );
 
-    // Calculate detailed spillovers with real trade data
+    // 5. Calculate detailed spillovers with real trade data
     const playerDecisionsArr = updatedDecisions[gameState.playerCountry] || [];
     const playerDecisionsObj = Array.isArray(playerDecisionsArr)
       ? playerDecisionsArr.reduce((acc, d) => { acc[d.id] = d.value; return acc; }, {} as { [key: string]: number })
@@ -276,15 +285,14 @@ function App() {
       gameState.countries[gameState.playerCountry] // Pass the source country's current (pre-update) stats
     );
 
-    // Update all countries
+    // 6. Update all countries
     const newCountries: { [key: string]: CountryStats } = {};
-    
     Object.keys(gameState.countries).forEach(countryName => {
       const currentStats = gameState.countries[countryName];
       const countryDecisions = updatedDecisions[countryName] || [];
       const spillovers = spilloversByCountry[countryName] || [];
 
-      // Aggregate effects from events targeting this country
+      // 6a. Aggregate effects from events targeting this country
       const countryEventEffects: Record<string, number> = {};
       regionalEvents.forEach(event => {
         if (event.targetCountries?.includes(countryName)) {
@@ -294,7 +302,7 @@ function App() {
         }
       });
 
-      // Apply policy effects with spillovers and events
+      // 6b. Apply policy effects with spillovers and events
       const newStats = PolicySimulator.applyPolicyEffects(
         currentStats,
         countryDecisions,
@@ -306,19 +314,16 @@ function App() {
       newCountries[countryName] = newStats;
     });
 
-    // Update trade matrix based on policies
+    // 7. Update trade matrix based on policies
     const policyChanges: { [key: string]: { [key: string]: number } } = {};
     Object.entries(updatedDecisions).forEach(([country, decisions]) => {
       policyChanges[country] = {};
       decisions.forEach(decision => {
         switch (decision.id) {
-          case 'trade':
-            policyChanges[country].trade_openness = decision.value;
-            break;
-          case 'infrastructure':
+          case 'connectivity':
             policyChanges[country].infrastructure_investment = decision.value;
             break;
-          case 'cooperation':
+          case 'trust':
             policyChanges[country].cooperation_policy = decision.value - 50;
             break;
         }
@@ -330,9 +335,7 @@ function App() {
       policyChanges
     );
 
-    // Set new events to be displayed in the modal
-    setNewEvents(regionalEvents);
-
+    // 8. setGameState
     setGameState(prev => ({
       ...prev,
       countries: newCountries,
@@ -347,7 +350,10 @@ function App() {
       }
     }));
 
-    // Update historical stats for player country
+    // 9. setNewEvents
+    setNewEvents(regionalEvents);
+
+    // 10. setHistoricalStats
     if (gameState.playerCountry && newCountries[gameState.playerCountry]) {
       setHistoricalStats(prev => [...prev, newCountries[gameState.playerCountry]]);
     }
@@ -408,22 +414,22 @@ function App() {
               <li className="flex items-start">
                 <div className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg mr-4 flex-shrink-0 shadow">1</div>
                 <div>
-                  <h3 className="font-semibold text-gray-800">Understand Your Goal</h3>
-                  <p>Your objective is to analyze regional trade dynamics. Use the simulation to test different policy approaches (e.g., multilateralism vs. bilateralism) and use the data to support your final essay.</p>
+                  <h3 className="font-semibold text-gray-800">Select a Nation</h3>
+                  <p>Choose any South Asian country to lead. Each nation starts with its real-world economic and social indicators.</p>
                 </div>
               </li>
               <li className="flex items-start">
                 <div className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg mr-4 flex-shrink-0 shadow">2</div>
                 <div>
-                  <h3 className="font-semibold text-gray-800">Use the Policy Levers</h3>
-                  <p>In the "Policy Dashboard", you'll find sliders that represent real-world trade barriers. Experiment with them to see their impact on your country and the region.</p>
+                  <h3 className="font-semibold text-gray-800">Make Policy Decisions</h3>
+                  <p>Use the "Policy Dashboard" to set your national strategy for the year. Invest in industries, adjust trade policies, and manage your budget.</p>
                 </div>
               </li>
               <li className="flex items-start">
                 <div className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg mr-4 flex-shrink-0 shadow">3</div>
                 <div>
-                  <h3 className="font-semibold text-gray-800">Analyze the Results</h3>
-                  <p>After clicking "Next Year", check the "Results & KPIs" and "Spillover Analysis" tabs. Pay attention to not just your own country's stats, but the ripple effects your decisions have on your neighbors.</p>
+                  <h3 className="font-semibold text-gray-800">Advance Time & Observe</h3>
+                  <p>Click "Next Year" to see the results. Your stats will change, and your decisions will create "Spillover Effects" on your neighbors.</p>
                 </div>
               </li>
             </ol>

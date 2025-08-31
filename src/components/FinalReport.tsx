@@ -6,6 +6,7 @@ import { getRegionalAverage, AllIndicators } from '../data/ExcelDataLoader';
 
 interface FinalReportProps {
   finalStats: CountryStats;
+  allFinalStats: { [key: string]: CountryStats };
   initialStats: CountryStats;
   selectedCountry: string;
   finalScore: number;
@@ -15,6 +16,7 @@ interface FinalReportProps {
 
 export const FinalReport: React.FC<FinalReportProps> = ({
   finalStats,
+  allFinalStats,
   initialStats,
   selectedCountry,
   finalScore,
@@ -25,7 +27,7 @@ export const FinalReport: React.FC<FinalReportProps> = ({
 
   useEffect(() => {
     drawRegionalComparison();
-  }, [finalStats, selectedCountry]);
+  }, [finalStats, selectedCountry, allFinalStats]);
 
   const drawRegionalComparison = () => {
     if (!comparisonChartRef.current) return;
@@ -52,13 +54,11 @@ export const FinalReport: React.FC<FinalReportProps> = ({
     // Add other major countries for comparison
     const majorCountries = ['India', 'Bangladesh', 'Pakistan'].filter(c => c !== selectedCountry);
     majorCountries.forEach(country => {
-      const countryData = SOUTH_ASIAN_COUNTRIES.find(c => c.name === country);
-      if (countryData) {
-        // Use sample data for comparison (in real app, would use actual final year data)
-        const sampleGDP = country === 'India' ? 5.8 : country === 'Bangladesh' ? 6.1 : 1.2;
+      const countryStats = allFinalStats[country];
+      if (countryStats) {
         regionalData.push({
           country,
-          gdp_growth: sampleGDP,
+          gdp_growth: countryStats.gdp_growth,
           isPlayer: false
         });
       }
