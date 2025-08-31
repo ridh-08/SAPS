@@ -584,55 +584,71 @@ export class RegionalEconomySimulator {
     return cooperationEffects;
   }
 
-  static generateRegionalEvents(year: number, cooperationIndex: number): any[] {
-    const events = [];
-    const eventProbability = Math.random();
+  static generateRegionalEvents(year: number, cooperationIndex: number, history: any[] = []): any[] {
+    // Overall chance of any event happening this year to reduce frequency
+    if (Math.random() > 0.6) { // Only a 60% chance of an event check per year
+      return [];
+    }
+    
+    const eventPool = [
+      // Natural Disasters
+      { id: 'monsoon_floods', name: 'Severe Monsoon Floods', probability: 0.08, targets: ['Bangladesh', 'India', 'Pakistan'], description: 'Unusually heavy monsoon rains have caused widespread flooding, displacing thousands and damaging crops and infrastructure.', effects: { gdp_growth: -0.6, poverty_rate: 1.5, infrastructure_investment: -1.0 } },
+      { id: 'cyclone_bay_of_bengal', name: 'Cyclone in Bay of Bengal', probability: 0.06, targets: ['Bangladesh', 'India', 'Sri Lanka'], description: 'A powerful cyclone makes landfall, devastating coastal communities and disrupting port activities.', effects: { gdp_growth: -0.8, population: -0.005, infrastructure_investment: -1.5 } },
+      { id: 'drought', name: 'Severe Drought', probability: 0.05, targets: ['Pakistan', 'India', 'Afghanistan'], description: 'A prolonged drought has led to water shortages and crop failures, impacting food security.', effects: { gdp_growth: -0.5, agriculture_gdp_percent: -1.0, poverty_rate: 1.2 } },
 
-    // SAARC Summit (every 3 years)
-    if (year % 3 === 0 && eventProbability < 0.7) {
-      events.push({
-        id: 'saarc_summit',
-        name: 'SAARC Summit',
-        description: 'Regional leaders meet to discuss cooperation and trade agreements',
-        year,
-        effects: {
-          cooperation_boost: cooperationIndex > 60 ? 5 : 2,
-          trade_volume_increase: 0.1
-        }
-      });
+      // Economic Events
+      { id: 'global_recession', name: 'Global Economic Recession', probability: 0.07, region_wide: true, description: 'A global economic downturn reduces demand for exports and slows foreign investment across the region.', effects: { gdp_growth: -1.0, unemployment: 1.5 } },
+      { id: 'oil_price_shock', name: 'Oil Price Shock', probability: 0.08, region_wide: true, description: 'A sudden surge in global oil prices increases import costs and fuels inflation.', effects: { gdp_growth: -0.4, co2_emissions: -0.1 } },
+      { id: 'fdi_boom', name: 'Major Foreign Investment', probability: 0.05, targets: ['India', 'Bangladesh'], description: 'A major multinational corporation announces significant investment in the tech and manufacturing sectors, boosting employment and growth.', effects: { gdp_growth: 0.8, unemployment: -0.5, technology_spending: 0.5 }, unique: true },
+
+      // Political/Social Events
+      { id: 'regional_cooperation_summit', name: 'Successful Regional Summit', probability: 0.15, region_wide: true, description: 'A successful regional summit leads to new agreements on trade facilitation and cross-border projects.', effects: { trust: 10, connectivity: 0.5 } },
+      { id: 'border_tensions', name: 'Border Tensions Flare Up', probability: 0.08, targets: ['India', 'Pakistan'], description: 'Renewed tensions along the border lead to trade disruptions and decreased political trust.', effects: { trust: -15, gdp_growth: -0.3 } },
+      { id: 'health_breakthrough', name: 'Public Health Breakthrough', probability: 0.04, targets: ['India', 'Bangladesh', 'Sri Lanka'], description: 'A new vaccine program, shared between nations, dramatically reduces the incidence of a major disease.', effects: { life_expectancy: 0.5, health_expenditure: 0.2 }, unique: true },
+      { id: 'himalayan_earthquake', name: 'Major Himalayan Earthquake', probability: 0.03, targets: ['Nepal', 'Bhutan', 'India'], description: 'A major earthquake has struck the Himalayan region, causing significant damage to infrastructure and requiring international aid.', effects: { gdp_growth: -1.2, infrastructure_investment: -2.5, poverty_rate: 2.0 }, unique: true },
+    ];
+
+    const occurredEventIds = new Set(history.map(e => e.id));
+    const potentialEvents = eventPool.filter(event => !(event.unique && occurredEventIds.has(event.id)));
+
+    // Shuffle potential events to make the selection random
+    potentialEvents.sort(() => 0.5 - Math.random());
+
+    for (const event of potentialEvents) {
+      let eventProbability = event.probability;
+      // Cooperation index can influence political events
+      if (event.id === 'regional_cooperation_summit') {
+        eventProbability *= (cooperationIndex / 50); // Higher cooperation makes successful summits more likely
+      }
+      if (event.id === 'border_tensions') {
+        eventProbability *= ((100 - cooperationIndex) / 50); // Lower cooperation makes tensions more likely
+      }
+
+      if (Math.random() < eventProbability) {
+        return [{ // Return immediately with the first event that triggers
+          id: event.id,
+          name: event.name,
+          description: event.description,
+          year: year,
+          effects: event.effects,
+          targetCountries: event.region_wide ? SOUTH_ASIAN_COUNTRIES.map(c => c.name) : event.targets,
+        }];
+      }
     }
 
-    // Regional Trade Dispute
-    if (eventProbability < 0.15) {
-      events.push({
-        id: 'trade_dispute',
-        name: 'Regional Trade Dispute',
-        description: 'Tensions arise over trade policies, affecting regional cooperation',
-        year,
-        effects: {
-          cooperation_penalty: -3,
-          tariff_increase: 2,
-          gdp_growth: -0.2
-        }
-      });
+    // If no specific event was triggered, there's a chance for a generic stability event
+    if (year % 3 === 0) { // Every 3 years if nothing else happens
+        return [{
+            id: 'no_major_event',
+            name: 'A Period of Stability',
+            description: 'The region experiences a period of relative stability, allowing governments to focus on domestic policy.',
+            year: year,
+            effects: { gdp_growth: 0.1 }, // Small stability bonus
+            targetCountries: SOUTH_ASIAN_COUNTRIES.map(c => c.name)
+        }];
     }
 
-    // Cross-border Infrastructure Project
-    if (eventProbability < 0.2 && cooperationIndex > 65) {
-      events.push({
-        id: 'infrastructure_project',
-        name: 'Regional Infrastructure Initiative',
-        description: 'Joint infrastructure project connects multiple countries',
-        year,
-        effects: {
-          infrastructure_boost: 1.0,
-          trade_volume_increase: 0.15,
-          gdp_growth: 0.3
-        }
-      });
-    }
-
-    return events;
+    return []; // No event this year
   }
 
   static updateTradeMatrix(

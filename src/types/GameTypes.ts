@@ -31,6 +31,8 @@ export interface CountryStats {
   agriculture_gdp_percent?: number;
   manufacturing_gdp_percent?: number;
   services_gdp_percent?: number;
+  tariffRevenue?: number;
+  consumerWelfare?: number;
 }
 
 export interface PolicyDecision {
@@ -66,6 +68,7 @@ export interface RegionalEvent {
   effects: {
     [key: string]: number;
   };
+  targetCountries?: string[];
 }
 
 export interface TradeRelationship {

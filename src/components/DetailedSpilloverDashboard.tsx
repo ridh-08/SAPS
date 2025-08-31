@@ -9,6 +9,9 @@ import {
   Leaf,
   Cpu,
   Landmark,
+  ArrowUp,
+  ArrowDown,
+  Minus,
 } from 'lucide-react';
 
 interface DetailedSpilloverDashboardProps {
@@ -499,9 +502,16 @@ export const DetailedSpilloverDashboard: React.FC<DetailedSpilloverDashboardProp
                             <span className="block text-xs text-gray-500 capitalize">{effect.effectType} Effect</span>
                           </div>
                         </div>
-                        <span className={`text-lg font-bold ${getMagnitudeColor(effect.magnitude)}`}>
-                          {effect.magnitude > 0 ? '▲' : '▼'} {Math.abs(effect.magnitude).toFixed(3)}
-                        </span>
+                        <div className={`text-lg font-bold flex items-center ${getMagnitudeColor(effect.magnitude)}`}>
+                          {effect.magnitude > 0 ? (
+                            <ArrowUp className="w-5 h-5" />
+                          ) : effect.magnitude < 0 ? (
+                            <ArrowDown className="w-5 h-5" />
+                          ) : (
+                            <Minus className="w-5 h-5" />
+                          )}
+                          <span className="ml-1">{Math.abs(effect.magnitude).toFixed(3)}</span>
+                        </div>
                       </div>
                       <p className="text-sm text-gray-600 my-3 pl-10">"{effect.description}"</p>
                       <div className="flex items-center justify-between text-xs text-gray-500 pl-10">

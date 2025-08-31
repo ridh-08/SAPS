@@ -6,18 +6,17 @@ export class PolicySimulator {
   static applyPolicyEffects(
     currentStats: CountryStats,
     decisions: PolicyDecision[],
-    spilloverEffects: import('../types/GameTypes').PolicySpillover[] = []
+    spilloverEffects: import('../types/GameTypes').PolicySpillover[] = [],
+    eventEffects: Record<string, number> = {}
   ): CountryStats {
     const newStats = { ...currentStats };
     
-    // Get decision values
-    const educationSpending = decisions.find(d => d.id === 'education')?.value || currentStats.education_spending;
-    const healthSpending = decisions.find(d => d.id === 'health')?.value || currentStats.health_expenditure;
-    const infraSpending = decisions.find(d => d.id === 'infrastructure')?.value || currentStats.infrastructure_investment;
-    const envPolicy = decisions.find(d => d.id === 'environment')?.value || 2.0;
-    const tradePolicy = decisions.find(d => d.id === 'trade')?.value || 50;
-    const tariffPolicy = decisions.find(d => d.id === 'tariff')?.value || 15;
-    const cooperationPolicy = decisions.find(d => d.id === 'cooperation')?.value || 50;
+    // Get new, realistic decision values
+    const tariffPolicy = decisions.find(d => d.id === 'tariffs')?.value || 15;
+    const ntbPolicy = decisions.find(d => d.id === 'ntbs')?.value || 60;
+    const connectivityPolicy = decisions.find(d => d.id === 'connectivity')?.value || 5.0;
+    const trustPolicy = decisions.find(d => d.id === 'trust')?.value || 50;
+
     const agricultureSpending = decisions.find(d => d.id === 'agriculture')?.value || 3.5;
     const manufacturingSpending = decisions.find(d => d.id === 'manufacturing')?.value || 2.0;
     const servicesSpending = decisions.find(d => d.id === 'services')?.value || 1.5;
@@ -25,25 +24,22 @@ export class PolicySimulator {
     const technologySpending = decisions.find(d => d.id === 'technology')?.value || 1.0;
 
     // Education effects
-    const educationChange = (educationSpending - (currentStats.education_spending || 4.0));
+    const educationChange = (currentStats.education_spending || 4.0) - 4.0; // Assuming education is now a fixed stat for simplicity
     newStats.literacy_rate += educationChange * 0.25; // Slower increase in literacy
     newStats.gdp_growth += educationChange * 0.03; // Education is a very long-term investment
-    newStats.unemployment -= educationChange * 0.05; // Indirect effect on unemployment
-    newStats.education_spending = educationSpending;
 
     // Health effects
-    const healthChange = (healthSpending - (currentStats.health_expenditure || 3.0));
+    const healthChange = (currentStats.health_expenditure || 3.0) - 3.0; // Assuming health is now a fixed stat
     newStats.life_expectancy += healthChange * 0.08; // Slower, more realistic increase
     newStats.infant_mortality -= healthChange * 0.3; // Drastic changes toned down
     newStats.gdp_growth += healthChange * 0.02; // Health has a slower, long-term impact on GDP
-    newStats.health_expenditure = healthSpending;
 
     // Infrastructure effects
-    const infraChange = (infraSpending - (currentStats.infrastructure_investment || 5.0));
+    const infraChange = (connectivityPolicy - (currentStats.infrastructure_investment || 5.0));
     newStats.gdp_growth += infraChange * 0.05; // Strong but not instant effect
     newStats.unemployment -= infraChange * 0.1; // Job creation from construction/connectivity
     newStats.poverty_rate -= infraChange * 0.15; // Better infrastructure helps reduce poverty
-    newStats.infrastructure_investment = infraSpending;
+    newStats.infrastructure_investment = connectivityPolicy;
 
     // Industry-specific effects
     const agricultureChange = agricultureSpending - (currentStats.agriculture_spending || 3.5);
@@ -68,28 +64,29 @@ export class PolicySimulator {
     const technologyChange = technologySpending - (currentStats.technology_spending || 1.0);
     newStats.gdp_growth += technologyChange * 0.1; // High tech multiplier
     newStats.literacy_rate += technologyChange * 0.1; // Tech requires skills
-    // Environmental effects
-    const envChange = (envPolicy - (currentStats.environment_spending || 2.0));
-    newStats.co2_emissions *= (1 - envChange * 0.03);
-    newStats.gdp_growth -= envChange * 0.06; // Short-term cost, long-term benefit
     
-    // Trade effects
-    const tradeChange = (tradePolicy - (currentStats.trade_liberalization || 50)) / 100;
-    newStats.gdp_growth += tradeChange * 0.15;
-    newStats.unemployment -= tradeChange * 0.1;
-
+    // --- NEW TRADE MODEL ---
     // Tariff effects (protectionism vs free trade)
     const tariffEffect = (tariffPolicy - (currentStats.tariff_rate || 15)) / 100;
-    newStats.gdp_growth -= tariffEffect * 0.1; // High tariffs reduce efficiency
-    newStats.unemployment += tariffEffect * 0.08; // But may protect some jobs short-term
-    newStats.poverty_rate += tariffEffect * 0.15; // Higher prices from tariffs hurt the poor
+    newStats.gdp_growth -= tariffEffect * 0.12; // High tariffs reduce efficiency
+    newStats.unemployment += tariffEffect * 0.09; // But may protect some jobs short-term
+    newStats.poverty_rate += tariffEffect * 0.18; // Higher prices from tariffs hurt the poor
+
+    // NTB effects
+    const ntbEffect = (ntbPolicy - 60) / 100; // Baseline of 60
+    newStats.gdp_growth -= ntbEffect * 0.08; // NTBs are a drag on growth
 
     // Regional cooperation effects
-    const cooperationEffect = (cooperationPolicy - 50) / 100; // baseline 50%
+    const cooperationEffect = (trustPolicy - 50) / 100; // baseline 50%
     newStats.gdp_growth += cooperationEffect * 0.06; // Cooperation boosts trade and investment
     newStats.infrastructure_investment += cooperationEffect * 0.3; // Shared projects
 
-    // Apply spillover effects from other countries
+    // --- NEW KPI CALCULATIONS ---
+    // Proxy for trade volume, affected by all trade policies
+    const tradeVolumeProxy = 100 - (tariffPolicy * 0.5) - (ntbPolicy * 0.3) + (connectivityPolicy * 2) + (trustPolicy * 0.2);
+    // Tariff Revenue = Rate * Base. Base is affected by trade volume.
+    newStats.tariffRevenue = (tariffPolicy / 100) * (tradeVolumeProxy * 0.5);
+    // Consumer Welfare is a proxy. Lower tariffs/NTBs are better for consumers.
     spilloverEffects.forEach(spillover => {
       switch (spillover.policyType) {
         case 'trade_gdp':
@@ -116,6 +113,14 @@ export class PolicySimulator {
       }
     });
 
+    // Apply direct event effects
+    Object.keys(eventEffects).forEach(key => {
+      const statsRecord = newStats as unknown as Record<string, number>;
+      if (key in statsRecord && typeof statsRecord[key] === 'number') {
+        statsRecord[key] += eventEffects[key];
+      }
+    });
+
     // Add some realistic year-over-year variation
     const randomVariation = (Math.random() - 0.5) * 0.5; // ±0.25% random variation
     newStats.gdp_growth += randomVariation;
@@ -134,10 +139,10 @@ export class PolicySimulator {
     newStats.manufacturing_spending = manufacturingSpending;
     newStats.services_spending = servicesSpending;
     newStats.energy_spending = energySpending;
-    newStats.technology_spending = technologySpending;
-    newStats.environment_spending = envPolicy;
-    newStats.trade_liberalization = tradePolicy;
+    newStats.technology_spending = technologySpending;    
+    // Persist new policy decisions
     newStats.tariff_rate = tariffPolicy;
+    // Not saving NTBs, Connectivity, Trust to stats as they are abstract indices, not spending %
 
     return newStats;
   }

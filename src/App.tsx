@@ -6,6 +6,8 @@ import { PolicyDashboard } from './components/PolicyDashboard';
 import { StatsDisplay } from './components/StatsDisplay';
 import { RegionalDashboard } from './components/RegionalDashboard';
 import { DetailedSpilloverDashboard } from './components/DetailedSpilloverDashboard';
+import { ResultsDashboard } from './components/ResultsDashboard.tsx';
+import { CountryBriefing } from './components/CountryBriefing.tsx';
 import { EventModal } from './components/EventModal.tsx';
 import { GameLoop } from './components/GameLoop';
 import { FinalReport } from './components/FinalReport';
@@ -19,10 +21,11 @@ import {
   AllIndicators 
 } from './data/ExcelDataLoader';
 import { loadTradeProductsData, getBilateralTradeProducts } from './data/TradeProductsLoader';
+import { exportToCsv } from './utils/export.ts';
 import { INITIAL_REGIONAL_MATRIX, RegionalEconomySimulator } from './data/RegionalMatrix';
 import { createDefaultPolicyDecisions } from './data/PolicyDecisions';
 import { PolicySimulator } from './utils/PolicyModels';
-import { Globe, BarChart3, Settings } from 'lucide-react';
+import { Globe, BarChart3, Settings, MapPin, CheckSquare } from 'lucide-react';
 
 function App() {
   // Game state
@@ -43,7 +46,7 @@ function App() {
   const [historicalStats, setHistoricalStats] = useState<CountryStats[]>([]);
   const [gamePhase, setGamePhase] = useState<'select' | 'play' | 'report'>('select');
   const [finalScore, setFinalScore] = useState<number>(0);
-  const [activeTab, setActiveTab] = useState<'stats' | 'regional' | 'spillovers' | 'policies'>('stats');
+  const [activeTab, setActiveTab] = useState<'briefing' | 'stats' | 'policies' | 'results' | 'regional' | 'spillovers'>('briefing');
   const [allCountriesDecisions, setAllCountriesDecisions] = useState<{ [key: string]: PolicyDecision[] }>({});
 
   const startYear = 2023;
@@ -193,7 +196,7 @@ function App() {
     });
     setHistoricalStats([initialStats]);
     setGamePhase('play');
-    setActiveTab('stats');
+    setActiveTab('briefing');
   };
 
   const handleDecisionChange = (id: string, value: number) => {
@@ -280,37 +283,28 @@ function App() {
       const currentStats = gameState.countries[countryName];
       const countryDecisions = updatedDecisions[countryName] || [];
       const spillovers = spilloversByCountry[countryName] || [];
-      
-      // Apply random regional events
-      const randomEvents = generateRandomEvents();
-  const eventEffects: Record<string, number> = {};
-      
-      randomEvents.forEach(event => {
-        Object.keys(event.effects).forEach(key => {
-          eventEffects[key] = (eventEffects[key] || 0) + event.effects[key];
-        });
-      });
-      
-      // Apply policy effects with spillovers and events
-  const newStats = PolicySimulator.applyPolicyEffects(currentStats, countryDecisions, spillovers);
-      
-      // Apply event effects
-      Object.keys(eventEffects).forEach(key => {
-        const statsRecord = newStats as unknown as Record<string, number>;
-        if (key in statsRecord && typeof statsRecord[key] === 'number') {
-          statsRecord[key] = (statsRecord[key] || 0) + eventEffects[key];
+
+      // Aggregate effects from events targeting this country
+      const countryEventEffects: Record<string, number> = {};
+      regionalEvents.forEach(event => {
+        if (event.targetCountries?.includes(countryName)) {
+          Object.keys(event.effects).forEach(key => {
+            countryEventEffects[key] = (countryEventEffects[key] || 0) + event.effects[key];
+          });
         }
       });
+
+      // Apply policy effects with spillovers and events
+      const newStats = PolicySimulator.applyPolicyEffects(
+        currentStats,
+        countryDecisions,
+        spillovers,
+        countryEventEffects
+      );
       
       newStats.year = gameState.year + 1;
       newCountries[countryName] = newStats;
     });
-
-    // Update regional cooperation based on policies
-    const avgCooperation = Object.values(updatedDecisions).reduce((sum, decisions) => {
-      const coopDecision = decisions.find(d => d.id === 'cooperation');
-      return sum + (coopDecision?.value || 50);
-    }, 0) / Object.keys(updatedDecisions).length;
 
     // Update trade matrix based on policies
     const policyChanges: { [key: string]: { [key: string]: number } } = {};
@@ -336,12 +330,6 @@ function App() {
       policyChanges
     );
 
-    // Generate regional events
-    const regionalEvents = RegionalEconomySimulator.generateRegionalEvents(
-      gameState.year + 1,
-      avgCooperation
-    );
-
     // Set new events to be displayed in the modal
     setNewEvents(regionalEvents);
 
@@ -365,57 +353,6 @@ function App() {
     }
   };
 
-  const generateRandomEvents = (): RegionalEvent[] => {
-    const events: RegionalEvent[] = [];
-    const eventProbability = Math.random();
-    
-    if (eventProbability < 0.15) {
-      // SAARC Summit
-      events.push({
-        id: 'saarc_summit',
-        name: 'SAARC Summit',
-        description: 'Regional leaders meet to discuss trade and cooperation.',
-        year: gameState.year + 1,
-        effects: {
-          gdp_growth: 0.2,
-          cooperation: 5
-        }
-      });
-    }
-    
-    if (eventProbability < 0.08) {
-      // Natural disaster
-      events.push({
-        id: 'natural_disaster',
-        name: 'Regional Natural Disaster',
-        description: 'Floods or earthquakes affect multiple countries.',
-        year: gameState.year + 1,
-        effects: {
-          gdp_growth: -0.5,
-          infrastructure_investment: -1.0,
-          poverty_rate: 2.0
-        }
-      });
-    }
-    
-    if (eventProbability < 0.12) {
-      // Trade agreement
-      events.push({
-        id: 'trade_agreement',
-        name: 'Regional Trade Agreement',
-        description: 'New bilateral trade agreement signed between countries.',
-        year: gameState.year + 1,
-        effects: {
-          gdp_growth: 0.3,
-          trade_volume: 10,
-          cooperation: 3
-        }
-      });
-    }
-    
-    return events;
-  };
-
   const handleFinishGame = () => {
     if (!gameState.playerCountry) return;
     
@@ -423,6 +360,7 @@ function App() {
     // Use ExcelDataLoader to get initialStats for the selected country
     const initialStats = buildInitialStats(gameState.playerCountry, startYear);
     const score = PolicySimulator.calculateScore(finalStats, initialStats);
+    exportToCsv(historicalStats, gameState.playerCountry);
     
     setFinalScore(score);
     setGamePhase('report');
@@ -446,8 +384,8 @@ function App() {
     setDecisions(createDefaultPolicyDecisions());
     setHistoricalStats([]);
     setGamePhase('select');
-    setFinalScore(0);
-    setActiveTab('stats');
+    setFinalScore(0);    
+    setActiveTab('briefing');
     setAllCountriesDecisions({});
   };
 
@@ -464,43 +402,36 @@ function App() {
               affect not only your country but the entire region through trade, cooperation, and spillover effects.
             </p>
           </div>
-          <CountrySelector
-            selectedCountry={gameState.playerCountry}
-            onSelectCountry={handleCountrySelect}
-          />
-          <div className="mt-12 bg-white/60 p-8 rounded-xl shadow-lg border border-gray-200">
+          <div className="mb-12 bg-white/60 p-8 rounded-xl shadow-lg border border-gray-200">
             <h2 className="text-2xl font-bold text-center text-gray-700 mb-6">How to Play</h2>
             <ol className="space-y-4 text-gray-600">
               <li className="flex items-start">
                 <div className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg mr-4 flex-shrink-0 shadow">1</div>
                 <div>
-                  <h3 className="font-semibold text-gray-800">Select a Nation</h3>
-                  <p>Choose any South Asian country to lead. Each nation starts with its real-world economic and social indicators.</p>
+                  <h3 className="font-semibold text-gray-800">Understand Your Goal</h3>
+                  <p>Your objective is to analyze regional trade dynamics. Use the simulation to test different policy approaches (e.g., multilateralism vs. bilateralism) and use the data to support your final essay.</p>
                 </div>
               </li>
               <li className="flex items-start">
                 <div className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg mr-4 flex-shrink-0 shadow">2</div>
                 <div>
-                  <h3 className="font-semibold text-gray-800">Make Policy Decisions</h3>
-                  <p>Use the "Policy Dashboard" to set your national strategy for the year. Invest in industries, adjust trade policies, and manage your budget.</p>
+                  <h3 className="font-semibold text-gray-800">Use the Policy Levers</h3>
+                  <p>In the "Policy Dashboard", you'll find sliders that represent real-world trade barriers. Experiment with them to see their impact on your country and the region.</p>
                 </div>
               </li>
               <li className="flex items-start">
                 <div className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg mr-4 flex-shrink-0 shadow">3</div>
                 <div>
-                  <h3 className="font-semibold text-gray-800">Advance Time & Observe</h3>
-                  <p>Click "Next Year" to see the results. Your stats will change, and your decisions will create "Spillover Effects" on your neighbors.</p>
-                </div>
-              </li>
-              <li className="flex items-start">
-                <div className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg mr-4 flex-shrink-0 shadow">4</div>
-                <div>
-                  <h3 className="font-semibold text-gray-800">Achieve Prosperity</h3>
-                  <p>Your goal is to improve your country's key metrics over 20 years. Your final score will reflect your success as a leader.</p>
+                  <h3 className="font-semibold text-gray-800">Analyze the Results</h3>
+                  <p>After clicking "Next Year", check the "Results & KPIs" and "Spillover Analysis" tabs. Pay attention to not just your own country's stats, but the ripple effects your decisions have on your neighbors.</p>
                 </div>
               </li>
             </ol>
           </div>
+          <CountrySelector
+            selectedCountry={gameState.playerCountry}
+            onSelectCountry={handleCountrySelect}
+          />
         </div>
       </div>
     );
@@ -552,7 +483,18 @@ function App() {
 
         {/* Tab Navigation */}
         <div className="mb-6">
-          <div className="flex space-x-1 bg-white rounded-lg p-1 shadow-lg">
+          <div className="flex space-x-1 bg-white rounded-lg p-1 shadow-lg overflow-x-auto">
+            <button
+              onClick={() => setActiveTab('briefing')}
+              className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+                activeTab === 'briefing'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              <MapPin className="w-4 h-4 mr-2" />
+              Country Briefing
+            </button>
             <button
               onClick={() => setActiveTab('stats')}
               className={`flex items-center px-4 py-2 rounded-md transition-colors ${
@@ -574,6 +516,17 @@ function App() {
             >
               <Settings className="w-4 h-4 mr-2" />
               Policy Dashboard
+            </button>
+            <button
+              onClick={() => setActiveTab('results')}
+              className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+                activeTab === 'results'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              <CheckSquare className="w-4 h-4 mr-2" />
+              Results & KPIs
             </button>
             <button
               onClick={() => setActiveTab('regional')}
@@ -602,6 +555,7 @@ function App() {
 
         {/* Tab Content */}
         <div className="space-y-8">
+          {activeTab === 'briefing' && <CountryBriefing initialStats={historicalStats[0]} />}
           {activeTab === 'stats' && (
             <StatsDisplay
               currentStats={gameState.countries[gameState.playerCountry]}
@@ -616,6 +570,13 @@ function App() {
               onDecisionChange={handleDecisionChange}
               year={gameState.year}
               country={gameState.playerCountry}
+            />
+          )}
+
+          {activeTab === 'results' && (
+            <ResultsDashboard
+              currentStats={gameState.countries[gameState.playerCountry]}
+              initialStats={historicalStats[0]}
             />
           )}
 
