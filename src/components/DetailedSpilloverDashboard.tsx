@@ -59,17 +59,27 @@ export const DetailedSpilloverDashboard: React.FC<DetailedSpilloverDashboardProp
   };
 
   useEffect(() => {
-    drawSpilloverNetwork();
-    drawSpilloverTimeline();
-  }, [spilloverEffects, playerCountry, currentYear]);
+    const handleResize = () => {
+      drawSpilloverNetwork();
+      drawSpilloverTimeline();
+    };
+
+    // Initial draw
+    handleResize();
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [spilloverEffects, playerCountry, currentYear]); // Redraw when data changes
 
   const drawSpilloverNetwork = () => {
     if (!networkRef.current) return;
+    const container = networkRef.current.parentElement;
+    if (!container) return;
 
     const svg = d3.select(networkRef.current);
     svg.selectAll('*').remove();
 
-    const width = 600;
+    const width = container.clientWidth;
     const height = 400;
     svg.attr('width', width).attr('height', height);
 
@@ -251,13 +261,17 @@ export const DetailedSpilloverDashboard: React.FC<DetailedSpilloverDashboardProp
 
   const drawSpilloverTimeline = () => {
     if (!timelineRef.current) return;
+    const container = timelineRef.current.parentElement;
+    if (!container) return;
 
     const svg = d3.select(timelineRef.current);
     svg.selectAll('*').remove();
 
     const margin = { top: 20, right: 30, bottom: 40, left: 80 };
-    const width = 800 - margin.left - margin.right;
+    const width = container.clientWidth - margin.left - margin.right;
     const height = 200 - margin.top - margin.bottom;
+
+    if (width <= 0) return; // Don't draw if container is not visible or has no width
 
     svg.attr('width', width + margin.left + margin.right).attr('height', height + margin.top + margin.bottom);
 

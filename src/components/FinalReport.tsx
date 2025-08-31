@@ -26,18 +26,29 @@ export const FinalReport: React.FC<FinalReportProps> = ({
   const comparisonChartRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
-    drawRegionalComparison();
-  }, [finalStats, selectedCountry, allFinalStats]);
+    const handleResize = () => {
+      drawRegionalComparison();
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
+    return () => window.removeEventListener('resize', handleResize);
+  }, [finalStats, selectedCountry, allFinalStats]); // Redraw when data changes
 
   const drawRegionalComparison = () => {
     if (!comparisonChartRef.current) return;
+    const container = comparisonChartRef.current.parentElement;
+    if (!container) return;
 
     const svg = d3.select(comparisonChartRef.current);
     svg.selectAll('*').remove();
 
     const margin = { top: 40, right: 30, bottom: 80, left: 80 };
-    const width = 700 - margin.left - margin.right;
+    const width = container.clientWidth - margin.left - margin.right;
     const height = 400 - margin.top - margin.bottom;
+
+    if (width <= 0) return;
 
     const g = svg
       .attr('width', width + margin.left + margin.right)

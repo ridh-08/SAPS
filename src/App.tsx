@@ -461,8 +461,7 @@ function App() {
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100 p-6">
       {/* Event Modal */}
       <EventModal events={newEvents} onClose={() => setNewEvents([])} />
-
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl w-full mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
